@@ -1,0 +1,100 @@
+# Security
+
+IMS manages backups and credentials of production systems, so its design favours **security over features and features over speed**. This document describes the security model, the controls that implement it and how to operate IMS safely.
+
+## Reporting a vulnerability
+
+Report suspected vulnerabilities privately to the ITWOD security contact (security@itwodms.ir). Do not open public issues. Include the affected version (`VERSION` file or `/api/v1/health`), steps to reproduce and impact. Fixes are released as a new tag and rolled out through the normal update process.
+
+## 1. Guarantees by design
+
+- **No destructive remote functionality.** Core cannot delete projects, databases or files on managed servers, format disks, remove applications or run arbitrary shell commands. Servers are *revoked* or *decommissioned* (history kept), backup jobs are *archived*.
+- **Closed command set.** Agents accept exactly five command types – `ping`, `config.sync`, `monitor.collect`, `backup.run`, `agent.update` – each signed by Core, bound to one node, expiring and executed at most once. Agents enforce this list independently of Core.
+- **Outbound-only agents.** Agents open no ports; they connect to Core over HTTPS/WSS.
+- **Retention is scoped.** Agents only delete archives they created (`ims-<job>-<timestamp>.<ext>[.enc]` in the job's directory/prefix) and always keep the newest.
+
+## 2. Architecture and exposure
+
+| Component | Exposure |
+| --- | --- |
+| Caddy (`web`) | Only published service: 80 (redirect/ACME) and 443 (TLS 1.2+/1.3, HTTP/2, HTTP/3) |
+| Backend | Internal network + egress-only network (Telegram, GitHub); no published port; read-only root filesystem, `cap_drop: ALL`, `no-new-privileges`, runs as UID 1000 |
+| PostgreSQL, Redis | Internal network only (`internal: true`, no internet), password-protected |
+| Host updater | systemd service on the host, triggered by a request file; containers never get the Docker socket |
+
+Security headers (Caddy): HSTS, `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Permissions-Policy`, COOP and a strict CSP for the dashboard (`default-src 'self'`, no inline scripts, `frame-ancestors 'none'`). API responses carry `default-src 'none'` via Helmet.
+
+## 3. Identity and access (dashboard)
+
+- **Passwords:** Argon2id (m = 19 MiB, t = 2, p = 1), minimum 12 characters with a strength check; accounts lock after repeated failures (configurable), login is rate-limited per IP.
+- **Tokens:** short-lived access token (HS256 JWT, 15 min, audience `ims-dashboard`) held only in memory by the SPA; long-lived session via an opaque, SHA-256-hashed, **rotating** refresh token in an `HttpOnly`, `Secure`, `SameSite=Strict` cookie scoped to `/api/v1/auth`. Reuse of a rotated token outside a 15 s multi-tab grace window revokes the whole session.
+- **CSRF:** cookie-authenticated endpoints require a double-submit token and a matching `Origin`; all other endpoints require the `Authorization` header, which browsers never attach automatically.
+- **Sessions:** idle and absolute lifetimes; password change/reset revokes other sessions; users can review and revoke sessions.
+- **Roles:** `VIEWER` (read), `OPERATOR` (servers, jobs, runs, alerts), `ADMIN` (users, settings, Telegram, updates, revocation, revealing encryption keys – the latter additionally requires the admin's password).
+- **Setup:** the first-run wizard requires a random setup token generated inside the secrets volume and is closed permanently once completed.
+- **Audit log:** logins, failures, user/server/job changes, key reveals, command issuance, updates and settings changes are recorded with actor, IP and user agent.
+
+## 4. Node identity and protocol
+
+Specified in [docs/PROTOCOL.md](docs/PROTOCOL.md) and covered by shared test vectors (`tests/vectors/protocol-v1.json`) in all three repositories.
+
+- **Registration:** an admin creates the server; Core issues a Node ID and a **single-use, expiring** registration token (only its SHA-256 is stored). The agent generates an **Ed25519 key pair locally** and sends only the public key. Core returns a per-node secret once; it is stored AES-256-GCM encrypted (AAD bound to the server id) and never shown in the dashboard.
+- **Requests:** every agent request carries an HMAC-SHA256 over method, path, timestamp, nonce and body hash **plus** an Ed25519 signature with the node key. Core enforces ±300 s clock skew and single-use nonces (Redis). cPanel agents without libsodium use HMAC only (shown as "HMAC only" in the dashboard).
+- **Commands:** signed by Core with the node secret; agents verify signature, node binding, expiry and replay before execution.
+- **Revocation:** revoking a node deletes nothing on the server; its credential is invalidated immediately and open WebSocket sessions are closed.
+
+## 5. Secrets at rest
+
+| Secret | Storage |
+| --- | --- |
+| Master key (AES-256), JWT secret, DB/Redis passwords, setup token | Generated by the `init` container into the `ims-secrets` volume (files 0444, volume mounted read-only); never in git or `.env` |
+| Node secrets, backup source passwords, S3 credentials, archive encryption keys, Telegram bot token, GitHub token | AES-256-GCM with the master key, each with a context-specific AAD, in PostgreSQL |
+| Refresh tokens, registration tokens, Telegram link codes | SHA-256 hashes only |
+| Passwords | Argon2id hashes |
+
+Secrets needed by an agent (DB passwords, S3 keys, archive keys) are delivered inside the configuration response as an envelope encrypted with a key derived from the node secret, only over the authenticated channel. They are never included in commands, logs or Telegram messages; the structured loggers redact secret-looking keys.
+
+**Protect the master key.** Anyone with the database *and* the secrets volume can decrypt all stored credentials. Keep Core backups (which contain both) encrypted and offline. Rotating the master key requires re-encrypting all secrets and is not automated in 1.x – treat a leaked master key as an incident (section 9).
+
+## 6. Backups
+
+- Archive encryption: AES-256-GCM in 1 MiB chunks (`IMSENC1`), per-job random key, nonce prefix per archive, chunk counter and final flag in the AAD (truncation and reordering are detected).
+- Integrity: SHA-256 of every archive is reported to Core and shown in the run history.
+- S3: credentials are per job; use a bucket-scoped key with `PutObject`, `ListBucket` and `DeleteObject` limited to the job prefix (retention). Enable bucket versioning/object lock for ransomware resistance.
+- Database dumps use a dedicated read-only (`SELECT, SHOW VIEW, TRIGGER, LOCK TABLES, EVENT`) database user where possible.
+
+## 7. Updates and supply chain
+
+- Core updates install **only existing tags** of your private repository, validated again on the host (strict SemVer, no downgrade, optional signed tags), after a full backup, with automatic rollback on failed migrations or health checks.
+- Agent packages are inspected by Core before being stored (manifest, required files, no absolute paths / `..` / escaping links) and served only to authenticated nodes (or, for the bootstrap installer, with a still-valid registration token).
+- Agents verify size and SHA-256 of every download and – when a release public key is pinned – an **Ed25519 signature** made with an offline signing key (`npm run package` in IMS-Agent). Pinning the key is strongly recommended for production.
+- Dependencies are pinned to exact versions and installed with `npm ci`; containers use official minimal base images. `npm audit` is part of the release checklist (1.0.0: 0 known vulnerabilities in IMS-Core and IMS-Agent). `deepmerge-ts` is forced to 8.0.2 through `overrides` because Prisma 6.19 still pins the vulnerable 7.1.5 (GHSA-ggr8-5vv4-36mx); `npm ls` reports this override as "invalid", which is expected until Prisma updates the dependency.
+
+## 8. Operating securely – checklist
+
+- [ ] Run a released tag, keep the host patched (`unattended-upgrades`), Docker up to date.
+- [ ] Firewall: only 22 (restricted to admin IPs if possible), 80 and 443 inbound.
+- [ ] SSH with keys only; no password login.
+- [ ] Use a strong admin password, one account per person, least-privilege roles.
+- [ ] Configure a fine-grained GitHub token with read-only access to the IMS repositories only.
+- [ ] Pin the agent release public key on every server (`/etc/ims-agent/release-public.key`).
+- [ ] Back up Core daily (`backup-core-db.sh`) to encrypted, off-host storage; test a restore.
+- [ ] Review the audit log and Telegram notifications regularly; investigate unexpected revocations, key reveals or failed logins.
+- [ ] Keep `.env` at mode 0600 and never commit it.
+
+## 9. Incident response
+
+| Event | Action |
+| --- | --- |
+| A server is compromised | Servers › server › **Revoke**. Rotate that server's database/S3 credentials in the backup jobs. Re-enrol after cleanup with a new registration token. |
+| An admin account is compromised | Deactivate the user or reset the password (revokes all sessions), review the audit log, reveal-key events and settings changes. |
+| Registration token leaked | Issue a new token (older unused tokens are revoked) or let it expire. |
+| Telegram bot token leaked | Revoke it in @BotFather, store the new token in Settings › Telegram. |
+| Master key or Core backup leaked | Treat all stored credentials as compromised: rotate database passwords and S3 keys used by jobs, re-enrol nodes (new node secrets), rotate the Telegram and GitHub tokens, then contact ITWOD for a master key re-encryption procedure. |
+
+## 10. Known limitations
+
+- Integration tests against a real PostgreSQL/Redis/Docker stack are part of the release checklist, not of the unit test suite.
+- The master key cannot yet be rotated from the dashboard.
+- cPanel agents on hosts without libsodium authenticate with HMAC only.
+- Telegram access relies on Telegram's own account security; link only private chats and remove links of people who leave.

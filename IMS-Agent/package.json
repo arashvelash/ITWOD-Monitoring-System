@@ -1,0 +1,33 @@
+{
+  "name": "ims-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ITWOD Monitoring System - node agent for Ubuntu servers (backups, monitoring, health reports)",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "bin": {
+    "ims-agent": "dist/ims-agent.js"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "package": "node scripts/build.mjs --package",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "dev": "node scripts/build.mjs && node dist/ims-agent.js run"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.1142.0",
+    "@aws-sdk/lib-storage": "3.1142.0",
+    "cron-parser": "5.10.1",
+    "ws": "8.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.4",
+    "@types/ws": "8.18.2",
+    "esbuild": "0.28.2",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  }
+}

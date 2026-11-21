@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Build output
+backend/dist/
+frontend/dist/
+*.tsbuildinfo
+coverage/
+
+# Environment and secrets (never commit)
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+*.key
+
+# Runtime data (update requests, agent releases, backups of Core itself)
+data/
+backups/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json

@@ -1,0 +1,4 @@
+# Defence in depth: the agent must live OUTSIDE public_html (e.g. ~/ims-agent).
+# If it is ever placed inside a web root by mistake, nothing here may be served.
+Require all denied
+Deny from all

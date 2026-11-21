@@ -1,0 +1,18 @@
+[Unit]
+Description=IMS-Core updater (runs a dashboard-requested update)
+Documentation=file://@ROOT_DIR@/UPDATE.md
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=@ROOT_DIR@
+ExecStart=/usr/bin/env bash @ROOT_DIR@/scripts/update.sh --from-request
+TimeoutStartSec=45min
+Nice=5
+# The updater needs docker and git (the checkout may live under /home or /root);
+# /usr, /boot and /etc stay read-only for it.
+ProtectSystem=full
+PrivateTmp=yes
+NoNewPrivileges=yes

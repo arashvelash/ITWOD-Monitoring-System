@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch for IMS-Core update requests from the dashboard
+
+[Path]
+PathExists=@ROOT_DIR@/data/update/request.json
+Unit=ims-updater.service
+
+[Install]
+WantedBy=multi-user.target

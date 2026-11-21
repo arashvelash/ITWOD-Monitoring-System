@@ -1,0 +1,3 @@
+# The agent is CLI-only. Deny all web access to its configuration (Apache 2.2 and 2.4).
+Require all denied
+Deny from all

@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "description": "IMS protocol v1 shared test vectors. Regenerate with tests/vectors/generate-vectors.mjs",
+  "nodeSecret": "imss_AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+  "ed25519": {
+    "seedHex": "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+    "publicKeyBase64": "Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=",
+    "fingerprint": "SHA256:24f6ed6acbfe1009c030d7ca567c33ca4830911498236b5561a6c82abec5de28"
+  },
+  "http": [
+    {
+      "method": "POST",
+      "path": "/api/v1/agent/reports?batch=1",
+      "timestamp": 1767225600,
+      "nonce": "0123456789abcdef0123456789abcdef",
+      "body": "{\"reports\":[{\"type\":\"heartbeat\",\"data\":{\"uptimeSec\":42}}]}",
+      "bodySha256": "db18f69e3a2d782cde27f285ae4ded0ffb5e7986f5717b59b662b5ec5a4d0721",
+      "canonical": "IMS1-HMAC-SHA256\nPOST\n/api/v1/agent/reports?batch=1\n1767225600\n0123456789abcdef0123456789abcdef\ndb18f69e3a2d782cde27f285ae4ded0ffb5e7986f5717b59b662b5ec5a4d0721",
+      "signature": "daa11eedb11934ccb0e436a3c6153c59e23a93f953cc3527607e32ab1dbca3e9",
+      "keySignature": "JCyod8jOo+nOe8juTHinNUhIwACExM/gkEp1HvzrWw7JSc8lMIv/6WHB7lNmewMcFq15w6gVZomJDypBXj27Bw=="
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/agent/config",
+      "timestamp": 1767225601,
+      "nonce": "fedcba9876543210fedcba9876543210",
+      "body": "",
+      "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "canonical": "IMS1-HMAC-SHA256\nGET\n/api/v1/agent/config\n1767225601\nfedcba9876543210fedcba9876543210\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "signature": "32b45672dc73f3932a43a3eb39c696405d6b50dd676a84c71e4ec4bd7fcbb223",
+      "keySignature": "kPN/GW1x7UBJD3Bln4fEtn6DL2aNJo15pKIb9efsVfm+xHI3HiXBwpzPjsH2haxKMHrPwOzDkBoQn+7vAe3sBA=="
+    }
+  ],
+  "wsAuth": {
+    "nodeId": "ims-node-0001",
+    "ts": 1767225602,
+    "nonce": "aaaaaaaaaaaaaaaabbbbbbbbbbbbbbbb",
+    "canonical": "IMS1-WS-AUTH\nims-node-0001\n1767225602\naaaaaaaaaaaaaaaabbbbbbbbbbbbbbbb",
+    "signature": "63117a562bd1b59283dc57548b5b22a02aec1e4f3bf0e32453f22f44f28364f2",
+    "keySignature": "jbDdpFMVbjvPiIABl5fgjPHOmhK3zLWuhi1Xp3vLSo1VXwacLck0l5asl3qep3acded7mQIrr2u2klGbdaOTBg=="
+  },
+  "command": {
+    "id": "6f1c2d3e-4b5a-4c6d-8e9f-0a1b2c3d4e5f",
+    "command": "backup.run",
+    "issuedAt": 1767225603,
+    "expiresAt": 1767226503,
+    "payload": "{\"jobId\":\"11111111-2222-4333-8444-555555555555\",\"runId\":\"66666666-7777-4888-9999-000000000000\"}",
+    "payloadSha256": "de320ffa08ec5bf74dc63375e8df6630d43dd88db8e02080039c7fa65b5d4777",
+    "canonical": "IMS1-COMMAND\n6f1c2d3e-4b5a-4c6d-8e9f-0a1b2c3d4e5f\nbackup.run\n1767225603\n1767226503\nde320ffa08ec5bf74dc63375e8df6630d43dd88db8e02080039c7fa65b5d4777",
+    "signature": "572c8f2594f5b94d4bdc28d6bda37c33138237adfa327a7293c40084055e0705"
+  },
+  "configSecrets": {
+    "derivedKeyHex": "89a16496ade4aad1db23b2fbf44240ddfe6791959c6783f2b432066c10b6e1a7",
+    "plaintext": "{\"11111111-2222-4333-8444-555555555555\":{\"dbPassword\":\"s3cr3t-P@ss\"}}",
+    "envelope": {
+      "alg": "A256GCM",
+      "iv": "QEFCQ0RFRkdISUpL",
+      "tag": "DPIbSFPXmA5oW2qRdJ0ASA==",
+      "data": "8F4x5GtkZTZBDahqHthj6jRD/hQm4S0xz2MMgG1XaOH4FE/aZT/f7IVWQU5y/sJW0xhA0BaxOHtn5Wj2s2Pb2ZLU/j4L"
+    }
+  },
+  "archive": {
+    "keyBase64": "YGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn8=",
+    "noncePrefixHex": "8081828384858687",
+    "chunkSize": 48,
+    "plaintextHex": "494d53206261636b757020617263686976652074657374207061796c6f61640a494d53206261636b757020617263686976652074657374207061796c6f61640a494d53206261636b757020617263686976652074657374207061796c6f61640a494d53206261636b757020617263686976652074657374207061796c6f61640a",
+    "outputHex": "494d53454e43310100000030808182838485868700000030f4333a683c45acde4c8eb50554309b401879a572c5f22be497e31b6cf02b2d1d412c957cec72f304a4484fe1cb73379f0e2d4e1795d885157b47b3d6758c69b60000003016e17644618a28f879d317cad725361a5ac78fefd6cab1c0f9a70a0b2d264f022bc40c3c37eee6f5d294055db318024777662dd9c785f9101c5dfff57d44baa6000000200e3dcab2f821aa717fdd3c097fdd4cd107154c191e6c0fed025a7c1a1fe3c69b1a883f8887514ecb2265689895d02005"
+  }
+}
